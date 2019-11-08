@@ -1,0 +1,7 @@
+Quadrado - Kx = 25; Ky = 40; Ktt = 20;
+Oito - Kx = 20; Ky = 60; Ktt = 10;
+
+
+Velocidade referencia (w,v) quadrado = 0.1;
+Velocidade referencia (w,v) Circulo com condicao inicial # zero = 0.2;
+Velocidade referencia (w,v) Circulo com Condicao inicial zero = 0.3;

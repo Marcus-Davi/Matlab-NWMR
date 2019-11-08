@@ -1,0 +1,15 @@
+Adaptativo/Fixo
+Kx = 5
+Ky = 20
+Ktt = 5
+
+Nx = 0.01
+Ny = 0.09
+Ntt = 0.001
+
+Posicao inicial
+X = 0
+y = -0.5
+theta = pi/2
+
+massa m = 70

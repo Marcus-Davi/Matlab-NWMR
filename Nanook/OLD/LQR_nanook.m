@@ -1,0 +1,10 @@
+ur1 = 0.1;
+ur2 = 0.0;
+A = [0 ur2 0;-ur2 0 ur1;0 0 0];
+B = [1 0;0 0;0 1];
+C = eye(3);
+D = 0;
+SYS = ss(A,B,C,D);
+Q = diag([1 5 0]);
+R = 1*eye(2);
+[K_LQ,S,E] = lqr(SYS,Q,R)

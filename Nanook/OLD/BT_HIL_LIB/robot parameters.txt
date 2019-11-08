@@ -1,0 +1,2 @@
+D_wheel 0.405f //Distância entre rodas
+R_wheel 0.17f/2.0f //Raio das rodas
