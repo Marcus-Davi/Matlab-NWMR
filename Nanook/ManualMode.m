@@ -1,7 +1,8 @@
 % PUBLICAR TOPICO
 clear;clc;close all
-
-
+addpath('Paths')
+addpath('Ros')
+addpath('Functions')
 
 
 
