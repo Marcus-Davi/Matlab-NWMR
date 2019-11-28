@@ -61,16 +61,17 @@ while true
                  angle_fused = simpleFusion(angle_cal,gyr,Ts);
                  if(angle_gyro == 0)
                  angle_gyro = angle_cal; 
-                 zero_angle = angle_cal; %começa sempre em 0
+%                  zero_angle = angle_cal; %começa sempre em 0
                  end
                  
                  angle_gyro = angle_gyro - gyr*Ts;
 %                  A = [A angle_cal];
+                 A = [A angle_gyro];
               circle(0,0,1)
               hold on
 %               quiver(0,0,cos(angle),sin(angle),'Color','r','linewidth',2);
 %               quiver(0,0,cos(angle_cal),sin(angle_cal),'Color','r','linewidth',2);
-              quiver(0,0,cos(angle_cal-zero_angle),sin(angle_cal-zero_angle),'Color','r','linewidth',2);
+              quiver(0,0,cos(angle_cal),sin(angle_cal),'Color','r','linewidth',2);
               quiver(0,0,cos(angle_fused),sin(angle_fused),'Color','b','linewidth',2);
               quiver(0,0,cos(angle_gyro),sin(angle_gyro),'linewidth',2);
               grid on

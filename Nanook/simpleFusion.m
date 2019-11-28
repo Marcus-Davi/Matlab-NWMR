@@ -1,5 +1,5 @@
 function fused_angle = simpleFusion(Mag_yaw,Gyro_vel,Ts)
-K = [1.0648 -0.9226]; %Kalman Gain
+K = [0.1234 -0.0566]; %Kalman Gain
 persistent yaw bias
 if(isempty(yaw))
     yaw = 0;

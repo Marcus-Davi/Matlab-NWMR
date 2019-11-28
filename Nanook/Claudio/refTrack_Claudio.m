@@ -5,14 +5,14 @@ addpath('Functions')
 
 HIL = 1; %HARD IN LOOP
 %% SIMULATION PARAMETERS
-Ts = 0.2;
+Ts = 0.1;
 % R = 10;
 v = 0.1;
 x0 = [0; 0; 0]; %-1.4516
 
 % [Xr,Ur,Tsim] = path_oito(2,v,Ts,x0); 
 %  [Xr,Ur,Tsim] = path_reta(1,v,Ts,x0); 
-[Xr,Ur,Tsim] = path_S(1,v,Ts,x0);
+[Xr,Ur,Tsim] = path_S(0.8,v,Ts,x0);
 
 
 %ir de 0,0 -> (-6.5,-6.5)
@@ -22,17 +22,16 @@ iterations = round((Tsim/Ts));
 
 plot(Xr(1,:),Xr(2,:));
 hold on;
-
+% return
 %% ROS VARIABLES
 %rosinit
 pub = rospublisher('/nanook_move');
 % msg = rosmessage(pub);
 msg = rosmessage('geometry_msgs/Twist');
 sensors = rossubscriber('/sensors');
-tftree = rostf;
-laser = rossubscriber('/scan');
+slam = rossubscriber('/slam_out_pose');
 rate = rosrate(1/Ts);
-odom = getTransform(tftree, 'map', 'odom');
+
 
 %% Robot PARAMETERS
 vmax = 0.4;vmin = 0;
@@ -63,7 +62,7 @@ g =40;
 
 
 %% Simulation Parameters
-yk = [0 0 -pi/2]';
+yk = [0 0 0]';
 uk = [0 0]';
 YK = zeros(length(yk),iterations);
 YK_SLAM = zeros(length(yk),iterations);
@@ -76,23 +75,11 @@ zero_angle = [];
 for k=1:iterations
                 
     if(HIL)
-        tic
-        %Laser Scan
-        scan = receive(laser);
-        ranges = scan.Ranges;
-        angleI = scan.AngleIncrement;
-        angleMin = scan.AngleMin;
-        F = ranges2force(ranges,angleI,angleMin);
-        [v_apf,w_apf] = force2vw(F);
-         %
-        
-        
     sens = receive(sensors);
-    
-     odom = getTransform(tftree, 'map', 'odom');
-    quat = [odom.Transform.Rotation.W odom.Transform.Rotation.X odom.Transform.Rotation.Y odom.Transform.Rotation.Z];
+    slam_msg = receive(slam);   
+    quat = [slam_msg.Pose.Orientation.W slam_msg.Pose.Orientation.X slam_msg.Pose.Orientation.Y slam_msg.Pose.Orientation.Z];
     eul = quat2eul(quat);
-    yk_slam = [odom.Transform.Translation.X odom.Transform.Translation.Y eul(1)]';
+    yk_slam = [slam_msg.Pose.Position.X slam_msg.Pose.Position.Y eul(1)]';
     data = sens.Data;
     data = sscanf(data,'%d %d %d %d %d %d %d %d %d %f %f %f %f');
     Mag.x = data(7);
@@ -109,10 +96,10 @@ for k=1:iterations
     uk0 = uk;
     end
     
-%     yk = robot_model(yk,uk0,Ts); % Odometry
-%     yk(3) = angle_cal-zero_angle;
-    yk = robot_model(yk_slam,uk0,Ts); % SLAM
-
+    yk = robot_model(yk,uk0,Ts); % Odometry
+    if(HIL)
+    yk(3) = angle_cal-zero_angle;
+    end
    
     % LQR OVERRIDE ---- INIT
 %     
@@ -158,11 +145,6 @@ for k=1:iterations
       
     ek = Xr(:,k)-yk; %plotagem
     YK(:,k) = yk;
-    YK_SLAM(:,k) = yk_slam;
-    %APF + REFTRACK
-    uk(1) = uk(1) + v_apf;
-    uk(2) = uk(2) + w_apf;
-    
     
     UK(:,k) = uk;
     EK(:,k) = ek;
@@ -170,13 +152,15 @@ for k=1:iterations
     
     
     plot(YK(1,1:k),YK(2,1:k),'red');
-    plot(YK_SLAM(1,1:k),YK_SLAM(2,1:k),'blue');
+    
     
     if(HIL)
+    YK_SLAM(:,k) = yk_slam;
+    plot(YK_SLAM(1,1:k),YK_SLAM(2,1:k),'blue');
     motorGo(pub,uk(1),uk(2));
     rate.statistics
     waitfor(rate);
-    toc
+
     end
 
 end
@@ -190,11 +174,10 @@ figure;hold on;
 plot(Xr(1,:),Xr(2,:),'black--');
 grid on;
 plot(YK(1,:),YK(2,:),'red');
-plot(YK_SLAM(1,1:k),YK_SLAM(2,1:k),'blue');
 
 % plot(YK_Noiseless(1,:),YK_Noiseless(2,:))
 title('Controle de Robô Ñ-Holonômico em trajetória')
-legend('Trajetória Referência','Odom+Mag Robot','Slam Robot')
+legend('Trajetória Referência','Real Robot')
 % plot(time,YK)
 time = 1:iterations;
 grid on;

@@ -3,7 +3,7 @@ close all;clc;clear
 addpath('ROS_HIL')
 pub = rospublisher('/nanook_move');
 msg = rosmessage('geometry_msgs/Twist');
-laser = rossubscriber('/scan0');
+laser = rossubscriber('/scan');
 
 
 

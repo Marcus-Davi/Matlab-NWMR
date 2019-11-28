@@ -1,5 +1,5 @@
 clear;clc
-laser = rossubscriber('/scan0');
+laser = rossubscriber('/scan');
 
 
 

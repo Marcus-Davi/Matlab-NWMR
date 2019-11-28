@@ -1,6 +1,6 @@
 clear;close all;clc
 %rosinit
-Ts = 1/20;
+Ts = 1/10;
 pub = rospublisher('/nanook_move');
 % msg = rosmessage(pub);
 msg = rosmessage('geometry_msgs/Twist');
