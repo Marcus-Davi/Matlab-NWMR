@@ -1,8 +1,5 @@
 clear;close all;clc
-addpath('Paths')
-addpath('Ros')
-addpath('Functions')
-
+addpath('../Paths')
 HIL = 1; %HARD IN LOOP
 %% SIMULATION PARAMETERS
 Ts = 0.1;
@@ -12,7 +9,7 @@ x0 = [0; 0; 0]; %-1.4516
 
 % [Xr,Ur,Tsim] = path_oito(2,v,Ts,x0); 
 %  [Xr,Ur,Tsim] = path_reta(1,v,Ts,x0); 
-[Xr,Ur,Tsim] = path_S(0.8,v,Ts,x0);
+[Xr,Ur,Tsim] = path_S(1.2,v,Ts,x0);
 
 
 %ir de 0,0 -> (-6.5,-6.5)
@@ -25,22 +22,21 @@ hold on;
 % return
 %% ROS VARIABLES
 %rosinit
+if(HIL)
 pub = rospublisher('/nanook_move');
 % msg = rosmessage(pub);
 msg = rosmessage('geometry_msgs/Twist');
 sensors = rossubscriber('/sensors');
 slam = rossubscriber('/slam_out_pose');
 rate = rosrate(1/Ts);
-
+   map_topic = rossubscriber('map');
+end
 
 %% Robot PARAMETERS
-vmax = 0.4;vmin = 0;
-wmax = 0.7;wmin = -wmax;
+vmax = 0.2;vmin = 0;
+wmax = 0.5;wmin = -wmax;
 
 %% Sensors
-
-load('MagCalibration.mat');
-load('GyrCalibration.mat');
 
 %% LQR
 ur1 = v;
@@ -56,10 +52,9 @@ R = eye(2);
 
 % Klankar
 
-ksi = 0.3;      
-ohmega_n = 1;   
-g =40;  
-
+ksi = 0.8;      
+ohmega_n = 0.1;   
+g  = 40;
 
 %% Simulation Parameters
 yk = [0 0 0]';
@@ -80,26 +75,14 @@ for k=1:iterations
     quat = [slam_msg.Pose.Orientation.W slam_msg.Pose.Orientation.X slam_msg.Pose.Orientation.Y slam_msg.Pose.Orientation.Z];
     eul = quat2eul(quat);
     yk_slam = [slam_msg.Pose.Position.X slam_msg.Pose.Position.Y eul(1)]';
-    data = sens.Data;
-    data = sscanf(data,'%d %d %d %d %d %d %d %d %d %f %f %f %f');
-    Mag.x = data(7);
-    Mag.y = data(8);
-    angle_cal = atan2((Mag.y-MagOff.y),(Mag.x-MagOff.x)); %angulo mag. se liga sinal
-    if(isempty(zero_angle))
-       zero_angle = angle_cal; 
-    end
-    vd = data(10);
-    ve = data(11);
-    [v,w] = rpm2vw(vd,ve);
-    uk0 = [v w]';
+        yk = yk_slam;
     else
     uk0 = uk;
-    end
-    
     yk = robot_model(yk,uk0,Ts); % Odometry
-    if(HIL)
-    yk(3) = angle_cal-zero_angle;
     end
+ 
+  
+
    
     % LQR OVERRIDE ---- INIT
 %     
@@ -134,7 +117,7 @@ for k=1:iterations
 %     
 %     uk(1) = Ur(1,k)*cos(e3) - v1;
 %     uk(2) = Ur(2,k) -  v2;
-    
+%     
     % LQR OVERRIDE ---- END
     
     % saturation
@@ -164,16 +147,20 @@ for k=1:iterations
     end
 
 end
-motorGo(pub,0,0)
-
+if(HIL)
+motorGo(pub,0,0);
+end
 
 
 %% PLOTS
 close all
 figure;hold on;
+map = receive(map_topic);
+map_matlab = readBinaryOccupancyGrid(map);
+show(map_matlab)
 plot(Xr(1,:),Xr(2,:),'black--');
-grid on;
 plot(YK(1,:),YK(2,:),'red');
+grid on;
 
 % plot(YK_Noiseless(1,:),YK_Noiseless(2,:))
 title('Controle de Robô Ñ-Holonômico em trajetória')
@@ -198,7 +185,8 @@ grid on;
 % plot(YK(1,:))
 % legend('Ref','Kalman','Real')
 
-    
+    %% 
+
 
 
 

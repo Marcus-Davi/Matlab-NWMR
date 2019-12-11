@@ -1,9 +1,5 @@
 % PUBLICAR TOPICO
 clear;clc;close all
-addpath('Paths')
-addpath('Ros')
-addpath('Functions')
-
 
 
 %% Plot some trajectory
@@ -11,7 +7,7 @@ Ts = 0.1;
 x0 = [0 0 0]';
 yk = x0;
 v = 0.1;
-[Xr,Ur,Tsim] = path_S(1,v,Ts,x0);
+% [Xr,Ur,Tsim] = path_S(1,v,Ts,x0);
 
 %% Ros Parameters
 pub = rospublisher('/nanook_move');
@@ -19,7 +15,7 @@ msg = rosmessage('geometry_msgs/Twist'); % msg = rosmessage(pub);
 sensors = rossubscriber('/sensors');
 % slam = rossubscriber('/slam_out_pose');
 r = rosrate(1/Ts);
-
+yaw_odom = 0;
 %% Sensor
 load('GyrCalibration.mat');
 load('MagCalibration.mat');
@@ -73,9 +69,21 @@ while true
     [v,w] = rpm2vw(vd,ve);
     yk = robot_model(yk,[v w]',Ts); % Odometry
     yk(3) = angle_cal - zero_angle;
-    plot(Xr(1,:),Xr(2,:));
+    yaw_odom = yaw_odom + w*Ts;
+    yk_arrow = 0.3*[cos(yk(3)) sin(yk(3))];
+    yk_arrow_odom = 0.3*[cos(yaw_odom) sin(yaw_odom)];
+   
+    
+%     plot(Xr(1,:),Xr(2,:));
+%     hold on;
+    quiver(yk(1),yk(2),yk_arrow(1),yk_arrow(2),'b','linewidth',2);
     hold on;
-    plot(yk(1),yk(2),'*r')
+    quiver(yk(1),yk(2),yk_arrow_odom(1),yk_arrow_odom(2),'r','linewidth',2);
+    
+    plot(yk(1),yk(2),'*b');
+    xlim([-2 2]);
+    ylim([-2 2]);
+
 %     plot(yk_slam(1),yk_slam(2),'*b')
     grid on
     hold off;
