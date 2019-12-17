@@ -46,11 +46,11 @@ while true
         send(pub,msg);
        case 2 %left
         msg.Linear.X = 0.0;
-        msg.Angular.Z = -0.5;
+        msg.Angular.Z = -0.35;
         send(pub,msg);
        case -2 %right
         msg.Linear.X = 0.0;
-        msg.Angular.Z = 0.5;
+        msg.Angular.Z = 0.35;
         send(pub,msg);
    end
     sens = receive(sensors);

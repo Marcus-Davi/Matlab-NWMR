@@ -7,8 +7,8 @@ clear;close all;clc
 %NORMA Minimiza Tzw
 
 %Velcidades de feedforward politópicas
-vr_min = 0.2; 
-vr_max = 0.5;
+vr_min = 0.05;  %0.1
+vr_max = 0.25; %0.5
 wr_min = 0.0;
 wr_max = 0.0;
 
@@ -37,10 +37,10 @@ nx = length(A);
 N = 2; %Vertices
 
 %Especificações de D-estabilidade
-h1 = -1.7; %bom valor = -1.5
-raio = 5; %bom valor = 3
+h1 = -0.25; %bom valor = -1.5
+raio = 2; %bom valor = 3
 h2 = -raio; %apenas para plot
-theta = deg2rad(25); %bom valor = 15, 25
+theta = deg2rad(35); %bom valor = 15, 25
 %% LPV - State Feedback
 disp('LPV - State Feedback');
 
