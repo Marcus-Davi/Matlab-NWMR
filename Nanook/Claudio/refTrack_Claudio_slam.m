@@ -1,6 +1,6 @@
 clear;close all;clc
 addpath('../Paths')
-HIL = 1; %HARD IN LOOP
+HIL = 0; %HARD IN LOOP
 %% SIMULATION PARAMETERS
 Ts = 0.1;
 % R = 10;
