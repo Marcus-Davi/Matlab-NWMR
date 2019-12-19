@@ -4,7 +4,7 @@ pub = rospublisher('/nanook_move');
 % msg = rosmessage(pub);
 msg = rosmessage('geometry_msgs/Twist');
 
-laser = rossubscriber('/scan0');
+laser = rossubscriber('/scan');
 
 % msg.Linear.X = 0.1;
 % msg.Angular.Z = 0.0;

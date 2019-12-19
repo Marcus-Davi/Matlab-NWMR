@@ -4,12 +4,12 @@ HIL = 0; %HARD IN LOOP
 %% SIMULATION PARAMETERS
 Ts = 0.1;
 % R = 10;
-v = 0.1;
+v = [0.1 0.2]';
 x0 = [0; 0; 0]; %-1.4516
 
 % [Xr,Ur,Tsim] = path_oito(2,v,Ts,x0); 
 %  [Xr,Ur,Tsim] = path_reta(1,v,Ts,x0); 
-[Xr,Ur,Tsim] = path_S(1.2,v,Ts,x0);
+[Xr,Ur,Tsim] = path_square(2.5,v,Ts,x0);
 
 
 %ir de 0,0 -> (-6.5,-6.5)
@@ -19,7 +19,9 @@ iterations = round((Tsim/Ts));
 
 plot(Xr(1,:),Xr(2,:));
 hold on;
-% return
+figure
+plot(Ur(1,:));
+return
 %% ROS VARIABLES
 %rosinit
 if(HIL)
@@ -29,44 +31,43 @@ msg = rosmessage('geometry_msgs/Twist');
 sensors = rossubscriber('/sensors');
 slam = rossubscriber('/slam_out_pose');
 rate = rosrate(1/Ts);
-   map_topic = rossubscriber('map');
+map_topic = rossubscriber('map');
 end
 
 %% Robot PARAMETERS
-vmax = 0.2;vmin = 0;
-wmax = 0.5;wmin = -wmax;
-
-%% Sensors
-
+vmax = 0.35;vmin = 0;
+wmax = 0.6;wmin = -wmax;
 %% LQR
-ur1 = v;
-ur2 = 0.1;
+ur1 = (v(1) + v(2))/2;
+ur2 = 0.;
 A = [0 ur2 0;-ur2 0 ur1;0 0 0];
 B = [1 0;0 0;0 1];
 C = eye(3);
 D = zeros(3,2);
 SYS = ss(A,B,C,D);
-Q = diag([1 100 0]);
+Q = diag([1 10 0]);
 R = eye(2);
 [K_LQ,S,E] = lqr(SYS,Q,R);
 
-% Klankar
+%% Klankar
 
 ksi = 0.8;      
 ohmega_n = 0.1;   
 g  = 40;
 
+%% LPV
+load('../../LPV/Controlador_LPV.mat')
+K_lpv = Controlador_LPV;
 %% Simulation Parameters
-yk = [0 0 0]';
+yk = [0 -0.5 0]';
 uk = [0 0]';
 YK = zeros(length(yk),iterations);
 YK_SLAM = zeros(length(yk),iterations);
 UK = zeros(length(uk),iterations);
 EK = zeros(length(yk),iterations);
 
-
+% return
 %% Simulation / Experiment (HIL = 1)
-zero_angle = [];
 for k=1:iterations
                 
     if(HIL)
@@ -81,11 +82,7 @@ for k=1:iterations
     yk = robot_model(yk,uk0,Ts); % Odometry
     end
  
-  
-
-   
-    % LQR OVERRIDE ---- INIT
-%     
+     
     e_x = Xr(1,k)-yk(1);
     e_y = Xr(2,k)-yk(2);
     e_t = Xr(3,k)-yk(3);
@@ -97,28 +94,40 @@ for k=1:iterations
     e3 = atan2(sin(e3),cos(e3)); %true error
 
 
-    % KLANKAR
-   k1 = 2*ksi*ohmega_n;
-   k2 = g*abs(Ur(1,k)); 
-   k3 = k1;
-   
-    v1 = k1*(e1);                     % controlador  
-    v2 =  sign(Ur(1,k))*k2*(e2)+k3*e3;  % controlador
+    % KLANKAR ------------------------------------
+%    k1 = 2*ksi*ohmega_n;
+%    k2 = g*abs(Ur(1,k)); 
+%    k3 = k1;
+%    
+%     v1 = k1*(e1);                     % controlador  
+%     v2 =  sign(Ur(1,k))*k2*(e2)+k3*e3;  % controlador
+%     
+%     uk(1) = Ur(1,k)*cos(e3) + v1;
+%     uk(2) = Ur(2,k) +  v2; % se liga sinal
+% %     
+    % KLANKAR END ------------------------------
     
-    uk(1) = Ur(1,k)*cos(e3) + v1;
-    uk(2) = Ur(2,k) +  v2; % se liga sinal
-    
-    % KLANKAR FIM
-    
-    % LQR
+    % LQR ---------------------------------------
 %     V = -K_LQ*[e1 e2 e3]';
 %     v1 = V(1);
 %     v2 = V(2);
 %     
 %     uk(1) = Ur(1,k)*cos(e3) - v1;
 %     uk(2) = Ur(2,k) -  v2;
-%     
-    % LQR OVERRIDE ---- END
+    
+    % LQR END ----------------------------------
+        
+    % LPV --------------------------------------
+    K_LPV = K_lpv.K0 + Ur(1,k)*K_lpv.K1;
+    V = -K_LPV*[e1 e2 e3]';
+    v1 = V(1);
+    v2 = V(2);
+    
+    uk(1) = Ur(1,k)*cos(e3) - v1;
+    uk(2) = Ur(2,k) -  v2;    
+    % LPV END ----------------------------------
+    
+    
     
     % saturation
     uk(1) = min(uk(1),vmax);
@@ -126,20 +135,17 @@ for k=1:iterations
     uk(2) = min(uk(2),wmax);
     uk(2) = max(uk(2),wmin);
       
-    ek = Xr(:,k)-yk; %plotagem
+
     YK(:,k) = yk;
     
     UK(:,k) = uk;
-    EK(:,k) = ek;
+    EK(:,k) = [e_x e_y e3]';
     
-    
-    
-    plot(YK(1,1:k),YK(2,1:k),'red');
     
     
     if(HIL)
     YK_SLAM(:,k) = yk_slam;
-    plot(YK_SLAM(1,1:k),YK_SLAM(2,1:k),'blue');
+%     plot(YK_SLAM(1,1:k),YK_SLAM(2,1:k),'blue');
     motorGo(pub,uk(1),uk(2));
     rate.statistics
     waitfor(rate);
@@ -155,9 +161,11 @@ end
 %% PLOTS
 close all
 figure;hold on;
+if(HIL)
 map = receive(map_topic);
 map_matlab = readBinaryOccupancyGrid(map);
 show(map_matlab)
+end
 plot(Xr(1,:),Xr(2,:),'black--');
 plot(YK(1,:),YK(2,:),'red');
 grid on;
@@ -178,6 +186,12 @@ plot(time*Ts,EK);
 legend('ex','ey','e_\theta')
 grid on;
 
+figure
+plot(Xr(1,:),Xr(2,:),'--black')
+hold on
+plot(YK(1,:),YK(2,:))
+grid on
+legend('Trajetória Referência','Posição SLAM')
 % figure
 % plot(Xr(1,:))
 % hold on;
