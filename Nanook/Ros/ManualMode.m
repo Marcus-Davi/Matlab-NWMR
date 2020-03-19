@@ -15,7 +15,7 @@ msg = rosmessage('geometry_msgs/Twist'); % msg = rosmessage(pub);
 sensors = rossubscriber('/sensors');
 % slam = rossubscriber('/slam_out_pose');
 r = rosrate(1/Ts);
-yaw_odom = 0;
+yaw_odom  = 0;
 %% Sensor
 % load('GyrCalibration.mat');
 % load('MagCalibration.mat');
@@ -37,20 +37,20 @@ while true
         msg.Angular.Z = 0.0;
         send(pub,msg);
        case 1  %up
-        msg.Linear.X = 0.1;
+        msg.Linear.X = 0.3;
         msg.Angular.Z = 0.0;
         send(pub,msg);
        case -1 %down
-        msg.Linear.X = -0.1;
+        msg.Linear.X = -0.3;
         msg.Angular.Z = 0.0;
         send(pub,msg);
        case 2 %left
         msg.Linear.X = 0.0;
-        msg.Angular.Z = -0.15;
+        msg.Angular.Z = -0.2;
         send(pub,msg);
        case -2 %right
         msg.Linear.X = 0.0;
-        msg.Angular.Z = 0.15;
+        msg.Angular.Z = 0.2;
         send(pub,msg);
    end
     sens = receive(sensors);
