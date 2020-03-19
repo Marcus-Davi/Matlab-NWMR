@@ -17,8 +17,8 @@ sensors = rossubscriber('/sensors');
 r = rosrate(1/Ts);
 yaw_odom = 0;
 %% Sensor
-load('GyrCalibration.mat');
-load('MagCalibration.mat');
+% load('GyrCalibration.mat');
+% load('MagCalibration.mat');
 
 %% Remote
 global dir;
@@ -37,20 +37,20 @@ while true
         msg.Angular.Z = 0.0;
         send(pub,msg);
        case 1  %up
-        msg.Linear.X = 0.2;
+        msg.Linear.X = 0.1;
         msg.Angular.Z = 0.0;
         send(pub,msg);
        case -1 %down
-        msg.Linear.X = -0.2;
+        msg.Linear.X = -0.1;
         msg.Angular.Z = 0.0;
         send(pub,msg);
        case 2 %left
         msg.Linear.X = 0.0;
-        msg.Angular.Z = -0.35;
+        msg.Angular.Z = -0.15;
         send(pub,msg);
        case -2 %right
         msg.Linear.X = 0.0;
-        msg.Angular.Z = 0.35;
+        msg.Angular.Z = 0.15;
         send(pub,msg);
    end
     sens = receive(sensors);
@@ -58,17 +58,17 @@ while true
     data = sscanf(data,'%d %d %d %d %d %d %d %d %d %f %f %f %f');
 %     slam_msg = receive(slam); 
 %     yk_slam = [slam_msg.Pose.Position.X slam_msg.Pose.Position.Y 0]';
-    Mag.x = data(7);
-    Mag.y = data(8);
-    angle_cal = atan2((Mag.y-MagOff.y),(Mag.x-MagOff.x)); %angulo mag. se liga sinal
-    if(isempty(zero_angle))
-    zero_angle = angle_cal; 
-    end
+%     Mag.x = data(7);
+%     Mag.y = data(8);
+%     angle_cal = atan2((Mag.y-MagOff.y),(Mag.x-MagOff.x)); %angulo mag. se liga sinal
+%     if(isempty(zero_angle))
+% %     zero_angle = angle_cal; 
+%     end
     vd = data(10);
     ve = data(11);
     [v,w] = rpm2vw(vd,ve);
     yk = robot_model(yk,[v w]',Ts); % Odometry
-    yk(3) = angle_cal - zero_angle;
+%     yk(3) = angle_cal - zero_angle;
     yaw_odom = yaw_odom + w*Ts;
     yk_arrow = 0.3*[cos(yk(3)) sin(yk(3))];
     yk_arrow_odom = 0.3*[cos(yaw_odom) sin(yaw_odom)];

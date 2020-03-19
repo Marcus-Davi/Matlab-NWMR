@@ -4,12 +4,12 @@ HIL = 0; %HARD IN LOOP
 %% SIMULATION PARAMETERS
 Ts = 0.1;
 % R = 10;
-v = [0.1 0.2]';
+v = [0.2]';
 x0 = [0; 0; 0]; %-1.4516
 
 % [Xr,Ur,Tsim] = path_oito(2,v,Ts,x0); 
-%  [Xr,Ur,Tsim] = path_reta(5,v,Ts,x0); 
-[Xr,Ur,Tsim] = path_square(2.5,v,Ts,x0);
+ [Xr,Ur,Tsim] = path_reta(6.5,v,Ts,x0); 
+% [Xr,Ur,Tsim] = path_square(2.5,v,Ts,x0);
 
 
 %ir de 0,0 -> (-6.5,-6.5)
@@ -29,10 +29,16 @@ pub = rospublisher('/nanook_move');
 % msg = rosmessage(pub);
 msg = rosmessage('geometry_msgs/Twist');
 sensors = rossubscriber('/sensors');
-slam = rossubscriber('/slam_out_pose');
+%slam = rossubscriber('/slam_out_pose');
 rate = rosrate(1/Ts);
-map_topic = rossubscriber('map');
+%map_topic = rossubscriber('map');
+
+% Sensors
+load('GyrCalibration.mat')
+load('MagCalibration.mat')
 end
+
+
 
 %% Robot PARAMETERS
 vmax = 0.35;vmin = 0;
@@ -59,28 +65,57 @@ g  = 40;
 load('../../LPV/Controlador_LPV.mat')
 K_lpv = Controlador_LPV;
 %% Simulation Parameters
-yk = [-0.5 0 0]';
+yk = [-0.25 0 0]';
 uk = [0 0]';
+vk = [0 0]';
 YK = zeros(length(yk),iterations);
-YK_SLAM = zeros(length(yk),iterations);
 UK = zeros(length(uk),iterations);
+VK = zeros(length(vk),iterations);
 EK = zeros(length(yk),iterations);
+VR_COMPENSATED = zeros(1,iterations);
+PITCH = zeros(1,iterations);
 
+zero_angle = 0;
+pitch_filtered = 0;
+vr_compensated = 0.2;
 % return
+
 %% Simulation / Experiment (HIL = 1)
 for k=1:iterations
                 
     if(HIL)
     sens = receive(sensors);
+    sens_data = sens.Data;
+    data = sscanf(sens_data,'%d %d %d %d %d %d %d %d %d %f %f %f %f');   
+    ax = data(1);ay=data(2);az=data(3);
+    gx = data(4);gy=data(5);gz=data(6);
+    mx = data(7);my=data(8);mz=data(9);
+    vd = data(10);
+    ve = data(11);
+    [v,w] = rpm2vw(vd,ve);
+    
+    
+    angle_cal = atan2(-(my-MagOff.y),(mx-MagOff.x));
+    
+    if(zero_angle == 0)
+       zero_angle = angle_cal; 
+    end
+    
+    pitch = atan2(-ax,sqrt(ay*ay+az*az));
+    alfa = 0.5;
+    pitch_filtered = alfa*pitch + (1-alfa)*pitch_filtered
+    vr_compensated = Ur(1,k)/cos(pitch_filtered)
+    
     % Calcular Pitch
     % Calcular Yaw
     % Calcular tilt compensation
     
-    slam_msg = receive(slam);   
-    quat = [slam_msg.Pose.Orientation.W slam_msg.Pose.Orientation.X slam_msg.Pose.Orientation.Y slam_msg.Pose.Orientation.Z];
-    eul = quat2eul(quat);
-    yk_slam = [slam_msg.Pose.Position.X slam_msg.Pose.Position.Y eul(1)]';
-        yk = yk_slam;
+    %Odometria
+    vk = [v w];
+    yk = robot_model(yk,vk,Ts); % Odometry
+    
+    yk(3) = wrapTo2Pi(zero_angle - angle_cal);
+   
     else
     uk0 = uk;
     yk = robot_model(yk,uk0,Ts); % Odometry
@@ -122,13 +157,13 @@ for k=1:iterations
     % LQR END ----------------------------------
         
     % LPV --------------------------------------
-    K_LPV = K_lpv.K0 + 0.3*K_lpv.K1;
+    K_LPV = K_lpv.K0 + vr_compensated*K_lpv.K1;
     V = -K_LPV*[e1 e2 e3]';
     v1 = V(1);
     v2 = V(2);
     
-    uk(1) = 0.3*cos(e3) - v1;
-    uk(2) = Ur(2,k) -  v2;    
+    uk(1) = 0.*cos(e3) - v1
+    uk(2) = Ur(2,k) -  v2
     % LPV END ----------------------------------
     
     
@@ -141,14 +176,16 @@ for k=1:iterations
       
 
     YK(:,k) = yk;
-    
+    VK(:,k) = vk;
     UK(:,k) = uk;
     EK(:,k) = [e_x e_y e3]';
+    VR_COMPENSATED(k) = vr_compensated;
+    PITCH(k) = pitch_filtered;
     
     
     
     if(HIL)
-    YK_SLAM(:,k) = yk_slam;
+    YK_ODOM(:,k) = yk;
 %     plot(YK_SLAM(1,1:k),YK_SLAM(2,1:k),'blue');
     motorGo(pub,uk(1),uk(2));
     rate.statistics
@@ -166,9 +203,9 @@ end
 close all
 figure;hold on;
 if(HIL)
-map = receive(map_topic);
-map_matlab = readBinaryOccupancyGrid(map);
-show(map_matlab)
+% map = receive(map_topic);
+% map_matlab = readBinaryOccupancyGrid(map);
+% show(map_matlab)
 end
 plot(Xr(1,:),Xr(2,:),'black--');
 plot(YK(1,:),YK(2,:),'red');
@@ -183,6 +220,14 @@ grid on;
 
 figure
 plot(time*Ts,UK);
+% hold on
+% plot(time*Ts,VK);
+grid on;
+
+figure
+plot(PITCH)
+hold on
+plot(VR_COMPENSATED)
 grid on;
 
 figure
@@ -190,12 +235,8 @@ plot(time*Ts,EK);
 legend('ex','ey','e_\theta')
 grid on;
 
-figure
-plot(Xr(1,:),Xr(2,:),'--black')
-hold on
-plot(YK(1,:),YK(2,:))
-grid on
-legend('Trajetória Referência','Posição SLAM')
+
+
 % figure
 % plot(Xr(1,:))
 % hold on;

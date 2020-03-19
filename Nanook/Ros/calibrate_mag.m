@@ -7,10 +7,9 @@ msg = rosmessage('geometry_msgs/Twist');
 sensors = rossubscriber('/sensors');
 rate = rosrate(1/Ts);
 
-iterations = 100;
 w = 0.4; %rad/s
 arc = 2*pi; %2pi
-time = arc/w;
+time = arc/w + 8;
 iterations = round(time/Ts);
 motorGo(pub,0,w);
 S = zeros(13,iterations);
